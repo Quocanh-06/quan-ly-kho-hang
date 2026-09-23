@@ -1,0 +1,26 @@
+{
+  "name": "quan-ly-kho-hang",
+  "version": "1.0.0",
+  "description": "Để bảo vệ cấu trúc mã nguồn, toàn bộ đội dự án bắt buộc tuân thủ quy trình 3 bước sau:",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Quocanh-06/quan-ly-kho-hang.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Quocanh-06/quan-ly-kho-hang/issues"
+  },
+  "homepage": "https://github.com/Quocanh-06/quan-ly-kho-hang#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "pg": "^8.23.0"
+  }
+}
