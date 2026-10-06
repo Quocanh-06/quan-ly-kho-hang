@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 
 function App() {
-  // ==========================================
-  // 1. MODULE BẢO MẬT
-  // ==========================================
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -21,16 +18,11 @@ function App() {
     setIsLoggedIn(false); setUsername(''); setPassword('');
   };
 
-  // ==========================================
-  // 2. MODULE KHO HÀNG
-  // ==========================================
   const [products, setProducts] = useState([]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [editingId, setEditingId] = useState(null);
-  
-  // BIẾN MỚI: Hứng từ khóa tìm kiếm
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchProducts = () => {
@@ -76,15 +68,17 @@ function App() {
     fetch(`http://localhost:3000/products/${id}`, { method: 'DELETE' }).catch(() => fetchProducts());
   };
 
-  // MẠCH LỌC TÍN HIỆU: Chỉ giữ lại các sản phẩm có tên chứa từ khóa tìm kiếm
-  // Hàm toLowerCase() giúp gõ chữ hoa hay thường đều tìm ra
   const filteredProducts = products.filter(item => 
     item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // ==========================================
-  // 3. HIỂN THỊ GIAO DIỆN
+  // THUẬT TOÁN TÍNH THỐNG KÊ (DASHBOARD)
   // ==========================================
+  const totalItems = products.length;
+  const lowStockItems = products.filter(item => item.stock_quantity < 5).length;
+  const totalValue = products.reduce((sum, item) => sum + (item.price * item.stock_quantity), 0);
+
   if (!isLoggedIn) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f4f7f6', fontFamily: 'sans-serif' }}>
@@ -99,49 +93,62 @@ function App() {
   }
 
   return (
-    <div style={{ padding: '30px', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>📦 Bảng Điều Khiển Kho Hàng</h2>
-        <button onClick={handleLogout} style={{ padding: '8px 15px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Đăng xuất 🚪</button>
+    <div style={{ padding: '30px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0 }}>📦 Bảng Điều Khiển Kho Hàng</h2>
+        <button onClick={handleLogout} style={{ padding: '8px 15px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất 🚪</button>
+      </div>
+
+      {/* MODULE HIỂN THỊ THỐNG KÊ (DASHBOARD) */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+        <div style={{ flex: 1, backgroundColor: '#e3f2fd', padding: '20px', borderRadius: '8px', borderLeft: '5px solid #2196f3' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#1565c0' }}>Tổng phân loại</h4>
+          <h2 style={{ margin: 0 }}>{totalItems} <span style={{ fontSize: '16px', fontWeight: 'normal' }}>mã hàng</span></h2>
+        </div>
+        
+        <div style={{ flex: 1, backgroundColor: lowStockItems > 0 ? '#ffebee' : '#f1f8e9', padding: '20px', borderRadius: '8px', borderLeft: `5px solid ${lowStockItems > 0 ? '#f44336' : '#8bc34a'}` }}>
+          <h4 style={{ margin: '0 0 10px 0', color: lowStockItems > 0 ? '#c62828' : '#33691e' }}>Cảnh báo tồn kho (&lt; 5)</h4>
+          <h2 style={{ margin: 0 }}>{lowStockItems} <span style={{ fontSize: '16px', fontWeight: 'normal' }}>mặt hàng sắp hết</span></h2>
+        </div>
+
+        <div style={{ flex: 1, backgroundColor: '#fff8e1', padding: '20px', borderRadius: '8px', borderLeft: '5px solid #ffc107' }}>
+          <h4 style={{ margin: '0 0 10px 0', color: '#ff8f00' }}>Ước tính giá trị kho</h4>
+          <h2 style={{ margin: 0 }}>{totalValue.toLocaleString()} <span style={{ fontSize: '16px', fontWeight: 'normal' }}>đ</span></h2>
+        </div>
       </div>
       
-      <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: editingId ? '#fff3cd' : '#e9ecef', borderRadius: '5px' }}>
+      <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: editingId ? '#fff3cd' : '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
         <h4 style={{ marginTop: 0 }}>{editingId ? '✏️ Cập Nhật Hàng Hóa' : '➕ Thêm Hàng Mới'}</h4>
-        <input type="text" placeholder="Tên sản phẩm..." value={name} onChange={(e) => setName(e.target.value)} style={{ marginRight: '10px', padding: '8px', width: '200px' }} />
-        <input type="number" placeholder="Giá bán (VNĐ)..." value={price} onChange={(e) => setPrice(e.target.value)} style={{ marginRight: '10px', padding: '8px', width: '150px' }} />
-        <input type="number" placeholder="Số lượng..." value={stock} onChange={(e) => setStock(e.target.value)} style={{ marginRight: '10px', padding: '8px', width: '100px' }} />
+        <input type="text" placeholder="Tên sản phẩm..." value={name} onChange={(e) => setName(e.target.value)} style={{ marginRight: '10px', padding: '8px', width: '250px', borderRadius: '4px', border: '1px solid #ccc' }} />
+        <input type="number" placeholder="Giá bán (VNĐ)..." value={price} onChange={(e) => setPrice(e.target.value)} style={{ marginRight: '10px', padding: '8px', width: '150px', borderRadius: '4px', border: '1px solid #ccc' }} />
+        <input type="number" placeholder="Số lượng..." value={stock} onChange={(e) => setStock(e.target.value)} style={{ marginRight: '10px', padding: '8px', width: '100px', borderRadius: '4px', border: '1px solid #ccc' }} />
         <button onClick={handleSubmit} style={{ padding: '8px 15px', cursor: 'pointer', backgroundColor: editingId ? '#ffc107' : '#4CAF50', color: editingId ? 'black' : 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>{editingId ? 'Lưu thay đổi' : 'Thêm vào kho'}</button>
         {editingId && <button onClick={resetForm} style={{ padding: '8px 15px', cursor: 'pointer', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold', marginLeft: '10px' }}>Hủy</button>}
       </div>
 
-      {/* THANH TÌM KIẾM MỚI */}
       <div style={{ marginBottom: '15px' }}>
-        <input 
-          type="text" 
-          placeholder="🔍 Gõ tên sản phẩm để tìm nhanh..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '100%', padding: '10px', boxSizing: 'border-box', borderRadius: '4px', border: '2px solid #007BFF', outline: 'none' }}
-        />
+        <input type="text" placeholder="🔍 Gõ tên sản phẩm để tìm nhanh..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '100%', padding: '12px', boxSizing: 'border-box', borderRadius: '8px', border: '2px solid #007BFF', outline: 'none', fontSize: '15px' }} />
       </div>
 
-      <table border="1" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+      <table border="1" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', backgroundColor: 'white' }}>
         <thead>
           <tr style={{ backgroundColor: '#f2f2f2' }}>
             <th style={{ padding: '12px' }}>Tên sản phẩm</th>
             <th style={{ padding: '12px' }}>Giá bán</th>
             <th style={{ padding: '12px' }}>Tồn kho</th>
-            <th style={{ padding: '12px', textAlign: 'center' }}>Thao tác</th>
+            <th style={{ padding: '12px', textAlign: 'center', width: '150px' }}>Thao tác</th>
           </tr>
         </thead>
         <tbody>
-          {/* LƯU Ý: Vòng lặp bây giờ quét qua biến filteredProducts thay vì products gốc */}
           {filteredProducts.length > 0 ? (
             filteredProducts.map(item => (
-              <tr key={item.id}>
-                <td style={{ padding: '12px' }}>{item.product_name}</td>
-                <td style={{ padding: '12px' }}>{item.price.toLocaleString()} đ</td>
-                <td style={{ padding: '12px' }}>{item.stock_quantity}</td>
+              <tr key={item.id} style={{ backgroundColor: item.stock_quantity < 5 ? '#fff4f4' : 'white' }}>
+                <td style={{ padding: '12px', fontWeight: '500' }}>{item.product_name}</td>
+                <td style={{ padding: '12px', color: '#28a745', fontWeight: 'bold' }}>{item.price.toLocaleString()} đ</td>
+                {/* Bôi đỏ số lượng nếu dưới 5 */}
+                <td style={{ padding: '12px', color: item.stock_quantity < 5 ? '#dc3545' : 'inherit', fontWeight: item.stock_quantity < 5 ? 'bold' : 'normal' }}>
+                  {item.stock_quantity}
+                </td>
                 <td style={{ padding: '12px', textAlign: 'center' }}>
                   <button onClick={() => handleEditClick(item)} style={{ backgroundColor: '#ffc107', color: 'black', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginRight: '5px' }}>Sửa</button>
                   <button onClick={() => handleDeleteProduct(item.id)} style={{ backgroundColor: '#ff4d4d', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Xóa</button>
@@ -149,11 +156,7 @@ function App() {
               </tr>
             ))
           ) : (
-            <tr>
-              <td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
-                Không tìm thấy linh kiện hoặc hàng hóa nào khớp với "{searchTerm}"
-              </td>
-            </tr>
+            <tr><td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Không tìm thấy mặt hàng "{searchTerm}"</td></tr>
           )}
         </tbody>
       </table>
