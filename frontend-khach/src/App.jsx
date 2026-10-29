@@ -26,15 +26,16 @@ function App() {
   const [invoice, setInvoice] = useState(null);
 
   // ===== FETCH PRODUCTS (API công khai - khách hàng xem hàng) =====
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (signal) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(PRODUCTS_API);
+      const res = await fetch(PRODUCTS_API, { signal });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setProducts(data);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       setError('Không thể tải danh sách sản phẩm. Kiểm tra kết nối.');
       console.error(err);
     } finally {
@@ -43,7 +44,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    const controller = new AbortController();
+    fetchProducts(controller.signal);
+    return () => controller.abort();
   }, [fetchProducts]);
 
   // ===== CART =====

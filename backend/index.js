@@ -1,18 +1,31 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const { securityHeaders, strictCors, bodySizeLimit, sanitizeError } = require('./security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-project.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-anon-key';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-app.use(cors());
+// Trả về lỗi an toàn: trong production chỉ hiển thị message chung, không rò rinci chi tiết hệ thống
+function sendError(res, status, message, err) {
+  const payload = { error: message };
+  if (!IS_PROD && err) {
+    payload.detail = err.message || String(err);
+  }
+  res.status(status).json(payload);
+}
+
+app.use(securityHeaders);
+app.use(strictCors(ALLOWED_ORIGIN));
 app.use(express.json());
+app.use(bodySizeLimit);
 
 // ============================================
 // ADMIN AUTH - Rate limiting (in-memory)
@@ -88,7 +101,7 @@ app.get('/health', async (req, res) => {
     if (error) throw error;
     res.json({ status: 'ok', supabase: 'connected' });
   } catch (err) {
-    res.status(500).json({ status: 'error', supabase: 'disconnected', detail: err.message });
+    sendError(res, 500, 'Supabase disconnected', err);
   }
 });
 
@@ -106,7 +119,7 @@ app.get('/products', async (req, res) => {
     res.json(data || []);
   } catch (err) {
     console.error('GET /products error:', err.message || err);
-    res.status(500).json({ error: 'Failed to fetch products', detail: err.message || String(err) });
+    sendError(res, 500, 'Failed to fetch products', err);
   }
 });
 
@@ -131,7 +144,7 @@ app.post('/products', requireAdmin, async (req, res) => {
     res.status(201).json(data);
   } catch (err) {
     console.error('POST /products error:', err.message || err);
-    res.status(500).json({ error: 'Failed to create product', detail: err.message || String(err) });
+    sendError(res, 500, 'Failed to create product', err);
   }
 });
 
@@ -159,7 +172,7 @@ app.put('/products/:id', requireAdmin, async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('PUT /products/:id error:', err.message || err);
-    res.status(500).json({ error: 'Failed to update product', detail: err.message || String(err) });
+    sendError(res, 500, 'Failed to update product', err);
   }
 });
 
@@ -196,7 +209,7 @@ app.get('/orders', requireAdmin, async (req, res) => {
     res.json(ordersWithItems);
   } catch (err) {
     console.error('GET /orders error:', err.message || err);
-    res.status(500).json({ error: 'Failed to fetch orders', detail: err.message || String(err) });
+    sendError(res, 500, 'Failed to fetch orders', err);
   }
 });
 
@@ -307,7 +320,7 @@ app.post('/orders', async (req, res) => {
     });
   } catch (err) {
     console.error('POST /orders error:', err.message || err);
-    res.status(500).json({ error: 'Failed to create order', detail: err.message || String(err) });
+    sendError(res, 500, 'Failed to create order', err);
   }
 });
 
@@ -330,10 +343,17 @@ app.delete('/products/:id', requireAdmin, async (req, res) => {
     res.status(204).send();
   } catch (err) {
     console.error('DELETE /products/:id error:', err.message || err);
-    res.status(500).json({ error: 'Failed to delete product', detail: err.message || String(err) });
+    sendError(res, 500, 'Failed to delete product', err);
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server running on http://localhost:${PORT}`);
-});
+app.use(sanitizeError);
+
+// Vercel serverless: export app, chỉ listen khi chạy local (không phải trên Vercel)
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Backend server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
