@@ -137,14 +137,3 @@ npm run dev
 ```
 Authorization: Bearer <ADMIN_SECRET_TOKEN>
 ```
-
-## Troubleshooting
-
-| Lỗi | Nguyên nhân | Cách fix |
-|-----|-------------|----------|
-| EADDRINUSE :::3001 | Port 3001 đã bị một instance server cũ chiếm | Dừng tất cả node: `Stop-Process -Name "node" -Force` (PowerShell) hoặc đóng terminal đang chạy server, rồi khởi động lại |
-| Backend không kết nối Supabase | .env sai hoặc thiếu SUPABASE_URL/KEY | Kiểm tra `SUPABASE_URL` và `SUPABASE_KEY` trong `backend/.env` |
-| Frontend lỗi CORS | Vite proxy thiếu route | Dùng `VITE_API_URL` trong `.env` |
-| Login báo sai mật khẩu | Env chưa sync | Đảm bảo `.env` có `ADMIN_PASSWORD` đúng |
-
-MIT
