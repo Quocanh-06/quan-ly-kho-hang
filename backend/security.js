@@ -15,7 +15,10 @@ function securityHeaders(req, res, next) {
 function strictCors(allowedOrigin) {
   return function corsMiddleware(req, res, next) {
     const origin = req.headers.origin;
-    if (origin === allowedOrigin) {
+    // Cho phép tất cả nếu ALLOWED_ORIGIN là '*'
+    if (allowedOrigin === '*') {
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    } else if (origin === allowedOrigin) {
       res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -29,17 +32,13 @@ function strictCors(allowedOrigin) {
   };
 }
 
-// Giới hạn kích thước body để tránh payload bomba (100KB)
+// Giới hạn kích thước body để tránh payload bomba (100KB) - dùng Content-Length header
 function bodySizeLimit(req, res, next) {
-  let data = '';
-  req.on('data', chunk => {
-    data += chunk;
-    if (data.length > 100 * 1024) {
-      req.connection.destroy();
-      return res.status(413).json({ error: 'Request quá lớn' });
-    }
-  });
-  req.on('end', next);
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+  if (contentLength > 100 * 1024) {
+    return res.status(413).json({ error: 'Request quá lớn' });
+  }
+  next();
 }
 
 // Ẩn chi tiết lỗi trong production, chỉ trả về message chung

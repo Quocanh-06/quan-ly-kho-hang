@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const PRODUCTS_API = API_URL + '/products';
 const ORDERS_API = API_URL + '/orders';
 
@@ -53,7 +53,7 @@ function App() {
   const addToCart = (product) => {
     setError('');
     setOrderSuccessMsg('');
-    if (product.stock_quantity === 0) return;
+    if (product.stock_quantity <= 0) return;
     const existing = cart.find(item => item.product_id === product.id);
     if (existing) {
       if (existing.quantity >= product.stock_quantity) {
@@ -68,6 +68,7 @@ function App() {
     } else {
       setCart([...cart, {
         product_id: product.id,
+        product_code: product.product_code,
         product_name: product.product_name,
         price: Number(product.price),
         quantity: 1,
@@ -133,6 +134,7 @@ function App() {
       return;
     }
     try {
+      console.log('[Khách] Checkout to:', ORDERS_API);
       const res = await fetch(ORDERS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -142,15 +144,17 @@ function App() {
           customer_address: customerAddress.trim(),
           items: cart.map(item => ({
             product_id: item.product_id,
+            product_code: item.product_code,
             product_name: item.product_name,
             quantity: item.quantity,
             price: item.price,
           })),
         }),
       });
+      console.log('[Khách] Checkout response status:', res.status);
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Đặt hàng thất bại');
+        setError(data.error || `Đặt hàng thất bại (${res.status})`);
         return;
       }
       // Hiển thị hóa đơn điện tử
@@ -163,8 +167,8 @@ function App() {
       setOrderSuccessMsg('Đặt hàng thành công! Hóa đơn đang hiển thị bên dưới.');
       await fetchProducts(); // cập nhật tồn kho mới
     } catch (err) {
-      setError('Đặt hàng thất bại. Kiểm tra kết nối mạng.');
-      console.error(err);
+      console.error('[Khách] Checkout error:', err);
+      setError(`Đặt hàng thất bại: ${err.message}`);
     }
   };
 
@@ -227,11 +231,14 @@ function App() {
               {filteredProducts.map(product => (
                 <div key={product.id} style={styles.productCard}>
                   <div style={styles.productCardBody}>
+                    <div style={styles.productCode}><code>{product.product_code}</code></div>
                     <div style={styles.productName}>{product.product_name}</div>
                     <div style={styles.productPrice}>{formatCurrency(product.price)}</div>
                     <div style={styles.productStock}>
                       {product.stock_quantity === 0 ? (
                         <span style={styles.outOfStockBadge}>Hết hàng</span>
+                      ) : product.stock_quantity < 0 ? (
+                        <span style={styles.negativeStockBadge}>Thiếu: {Math.abs(product.stock_quantity)}</span>
                       ) : (
                         <span style={styles.inStockText}>Còn: {product.stock_quantity}</span>
                       )}
@@ -239,10 +246,10 @@ function App() {
                   </div>
                   <button
                     onClick={() => addToCart(product)}
-                    disabled={product.stock_quantity === 0}
-                    style={product.stock_quantity === 0 ? styles.btnOutOfStock : styles.btnAddToCart}
+                    disabled={product.stock_quantity <= 0}
+                    style={product.stock_quantity <= 0 ? styles.btnOutOfStock : styles.btnAddToCart}
                   >
-                    {product.stock_quantity === 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+                    {product.stock_quantity <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
                   </button>
                 </div>
               ))}
@@ -382,6 +389,7 @@ function App() {
                   <thead>
                     <tr>
                       <th style={styles.invoiceThSTT}>STT</th>
+                      <th>Mã hàng</th>
                       <th>Tên mặt hàng</th>
                       <th style={styles.invoiceThNum}>Số lượng</th>
                       <th style={styles.invoiceThNum}>Đơn giá</th>
@@ -392,6 +400,7 @@ function App() {
                     {(invoice.items || []).map((item, idx) => (
                       <tr key={item.id || idx}>
                         <td style={styles.invoiceTdSTT}>{idx + 1}</td>
+                        <td><code>{item.product_code || ''}</code></td>
                         <td>{item.product_name}</td>
                         <td style={styles.invoiceTdNum}>{item.quantity}</td>
                         <td style={styles.invoiceTdNum}>{formatCurrency(item.price)}</td>

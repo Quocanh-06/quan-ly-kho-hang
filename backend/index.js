@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { securityHeaders, strictCors, bodySizeLimit, sanitizeError } = require('./security');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const IS_PROD = process.env.NODE_ENV === 'production';
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
@@ -125,15 +125,36 @@ app.get('/products', async (req, res) => {
 
 app.post('/products', requireAdmin, async (req, res) => {
   try {
-    const { product_name, price, stock_quantity } = req.body;
+    const { product_code, product_name, price, stock_quantity } = req.body;
 
-    if (!product_name || price === undefined || stock_quantity === undefined) {
+    if (!product_code || !product_name || price === undefined || stock_quantity === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate: giá không âm
+    const priceNum = Number(price);
+    if (priceNum < 0) {
+      return res.status(400).json({ error: 'Giá không được âm' });
+    }
+
+    // Validate: product_code không trùng
+    const { data: existingCode } = await supabase
+      .from('products')
+      .select('id')
+      .eq('product_code', product_code.trim())
+      .single();
+    if (existingCode) {
+      return res.status(400).json({ error: 'Mã hàng đã tồn tại' });
     }
 
     const { data, error } = await supabase
       .from('products')
-      .insert([{ product_name, price: Number(price), stock_quantity: Number(stock_quantity) }])
+      .insert([{ 
+        product_code: product_code.trim(), 
+        product_name, 
+        price: priceNum, 
+        stock_quantity: Number(stock_quantity) 
+      }])
       .select()
       .single();
 
@@ -151,15 +172,37 @@ app.post('/products', requireAdmin, async (req, res) => {
 app.put('/products/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { product_name, price, stock_quantity } = req.body;
+    const { product_code, product_name, price, stock_quantity } = req.body;
 
-    if (!product_name || price === undefined || stock_quantity === undefined) {
+    if (!product_code || !product_name || price === undefined || stock_quantity === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate: giá không âm
+    const priceNum = Number(price);
+    if (priceNum < 0) {
+      return res.status(400).json({ error: 'Giá không được âm' });
+    }
+
+    // Validate: product_code không trùng (trừ chính nó)
+    const { data: existingCode } = await supabase
+      .from('products')
+      .select('id')
+      .eq('product_code', product_code.trim())
+      .neq('id', id)
+      .single();
+    if (existingCode) {
+      return res.status(400).json({ error: 'Mã hàng đã tồn tại' });
     }
 
     const { data, error } = await supabase
       .from('products')
-      .update({ product_name, price: Number(price), stock_quantity: Number(stock_quantity) })
+      .update({ 
+        product_code: product_code.trim(), 
+        product_name, 
+        price: priceNum, 
+        stock_quantity: Number(stock_quantity) 
+      })
       .eq('id', id)
       .select()
       .single();
@@ -277,6 +320,7 @@ app.post('/orders', async (req, res) => {
     const orderItemsPayload = items.map((item) => ({
       order_id: order.id,
       product_id: Number(item.product_id),
+      product_code: item.product_code || null,
       product_name: item.product_name,
       quantity: Number(item.quantity),
       price: Number(item.price),

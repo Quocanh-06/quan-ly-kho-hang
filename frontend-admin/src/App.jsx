@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const PRODUCTS_API = API_URL + '/products';
 const ORDERS_API = API_URL + '/orders';
 const LOGIN_API = API_URL + '/login';
@@ -23,7 +23,7 @@ function App() {
   const [error, setError] = useState('');
 
   // ===== ADMIN FORM (Thêm/Sửa) =====
-  const [formData, setFormData] = useState({ product_name: '', price: '', stock_quantity: '' });
+  const [formData, setFormData] = useState({ product_code: '', product_name: '', price: '', stock_quantity: '' });
   const [editingId, setEditingId] = useState(null);
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
 
@@ -51,13 +51,15 @@ function App() {
     setLoading(true);
     setError('');
     try {
+      console.log('[Admin] Fetching products from:', PRODUCTS_API);
       const res = await fetch(PRODUCTS_API);
-      if (!res.ok) throw new Error('Failed to fetch');
+      console.log('[Admin] Products response status:', res.status);
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
       setProducts(data);
     } catch (err) {
-      setError('Không thể tải danh sách sản phẩm. Kiểm tra kết nối.');
-      console.error(err);
+      console.error('[Admin] Fetch products error:', err);
+      setError(`Không thể tải sản phẩm: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -67,16 +69,18 @@ function App() {
   const fetchOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
+      console.log('[Admin] Fetching orders from:', ORDERS_API);
       const res = await fetch(ORDERS_API, { headers: getAuthHeaders() });
+      console.log('[Admin] Orders response status:', res.status);
       if (res.status === 401) {
         handle401(() => setError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại'));
         return;
       }
-      if (!res.ok) throw new Error('Failed to fetch orders');
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       const data = await res.json();
       setOrders(data);
     } catch (err) {
-      console.error('Fetch orders error:', err);
+      console.error('[Admin] Fetch orders error:', err);
     } finally {
       setOrdersLoading(false);
     }
@@ -106,11 +110,13 @@ function App() {
     setLoginError('');
     setLoggingIn(true);
     try {
+      console.log('[Admin] Login attempt to:', LOGIN_API);
       const res = await fetch(LOGIN_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
+      console.log('[Admin] Login response status:', res.status);
       const data = await res.json().catch(() => ({}));
       if (res.status === 429) {
         setLoginError(data.error || 'Bạn đã nhập sai quá nhiều lần, vui lòng thử lại sau 5 phút');
@@ -128,8 +134,8 @@ function App() {
       setIsLoggedIn(true);
       setAdminTab('kho');
     } catch (err) {
-      setLoginError('Không thể kết nối server. Kiểm tra kết nối mạng.');
-      console.error(err);
+      console.error('[Admin] Login error:', err);
+      setLoginError(`Không thể kết nối server: ${err.message}`);
     } finally {
       setLoggingIn(false);
     }
@@ -152,13 +158,18 @@ function App() {
     setError('');
 
     const payload = {
+      product_code: formData.product_code.trim(),
       product_name: formData.product_name.trim(),
       price: Number(formData.price),
       stock_quantity: Number(formData.stock_quantity),
     };
 
-    if (!payload.product_name || isNaN(payload.price) || isNaN(payload.stock_quantity)) {
+    if (!payload.product_code || !payload.product_name || isNaN(payload.price) || isNaN(payload.stock_quantity)) {
       setError('Vui lòng điền đầy đủ thông tin hợp lệ');
+      return;
+    }
+    if (payload.price < 0) {
+      setError('Giá không được âm');
       return;
     }
 
@@ -183,7 +194,10 @@ function App() {
         handle401(() => setError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại'));
         return;
       }
-      if (!res.ok) throw new Error('Request failed');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Request failed');
+      }
       await fetchProducts();
       resetForm();
     } catch (err) {
@@ -195,6 +209,7 @@ function App() {
   const handleEdit = (product) => {
     setEditingId(product.id);
     setFormData({
+      product_code: product.product_code || '',
       product_name: product.product_name,
       price: product.price,
       stock_quantity: product.stock_quantity,
@@ -227,7 +242,7 @@ function App() {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormData({ product_name: '', price: '', stock_quantity: '' });
+    setFormData({ product_code: '', product_name: '', price: '', stock_quantity: '' });
   };
 
   const handleChange = (e) => {
@@ -384,6 +399,7 @@ function App() {
                     <thead>
                       <tr>
                         <th style={styles.colId}>ID</th>
+                        <th>Mã hàng</th>
                         <th>Tên mặt hàng</th>
                         <th style={styles.colNumber}>Giá bán</th>
                         <th style={styles.colNumber}>Tồn kho</th>
@@ -395,10 +411,11 @@ function App() {
                       {adminFilteredProducts.map((product) => (
                         <tr key={product.id} className={product.stock_quantity < 5 ? 'low-stock' : ''}>
                           <td style={styles.colId}>{product.id}</td>
+                          <td><code>{product.product_code}</code></td>
                           <td>{product.product_name}</td>
                           <td style={styles.colNumber}>{formatCurrency(product.price)}</td>
                           <td style={styles.colNumber}>
-                            <span style={product.stock_quantity < 5 ? styles.lowStockBadge : {}}>{product.stock_quantity}</span>
+                            <span style={product.stock_quantity < 0 ? styles.negativeStockBadge : product.stock_quantity < 5 ? styles.lowStockBadge : {}}>{product.stock_quantity}</span>
                           </td>
                           <td style={styles.colNumber}>{formatCurrency(product.price * product.stock_quantity)}</td>
                           <td style={styles.colAction}>
@@ -418,6 +435,19 @@ function App() {
               <form onSubmit={handleSubmit} style={styles.form}>
                 <div style={styles.formRow}>
                   <div style={styles.inputGroup}>
+                    <label style={styles.label}>Mã hàng</label>
+                    <input
+                      type="text"
+                      name="product_code"
+                      value={formData.product_code}
+                      onChange={handleChange}
+                      placeholder="VD: CHAO001, THOT002..."
+                      style={styles.input}
+                      required
+                      disabled={editingId}
+                    />
+                  </div>
+                  <div style={styles.inputGroup}>
                     <label style={styles.label}>Tên mặt hàng</label>
                     <input
                       type="text"
@@ -429,6 +459,8 @@ function App() {
                       required
                     />
                   </div>
+                </div>
+                <div style={styles.formRow}>
                   <div style={styles.inputGroup}>
                     <label style={styles.label}>Giá bán (VNĐ)</label>
                     <input
@@ -443,7 +475,7 @@ function App() {
                     />
                   </div>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>Số lượng tồn kho</label>
+                    <label style={styles.label}>Số lượng tồn kho (có thể âm)</label>
                     <input
                       type="number"
                       name="stock_quantity"
@@ -451,7 +483,6 @@ function App() {
                       onChange={handleChange}
                       placeholder="0"
                       style={styles.input}
-                      min="0"
                       required
                     />
                   </div>
@@ -543,11 +574,12 @@ function App() {
                 </div>
               </div>
 
-              <div style={styles.invoiceSection}>
+<div style={styles.invoiceSection}>
                 <table style={styles.invoiceTable}>
                   <thead>
                     <tr>
                       <th style={styles.invoiceThSTT}>STT</th>
+                      <th>Mã hàng</th>
                       <th>Tên mặt hàng</th>
                       <th style={styles.invoiceThNum}>Số lượng</th>
                       <th style={styles.invoiceThNum}>Đơn giá</th>
@@ -558,6 +590,7 @@ function App() {
                     {(invoice.items || []).map((item, idx) => (
                       <tr key={item.id || idx}>
                         <td style={styles.invoiceTdSTT}>{idx + 1}</td>
+                        <td><code>{item.product_code || ''}</code></td>
                         <td>{item.product_name}</td>
                         <td style={styles.invoiceTdNum}>{item.quantity}</td>
                         <td style={styles.invoiceTdNum}>{formatCurrency(item.price)}</td>
@@ -831,6 +864,13 @@ const styles = {
   lowStockBadge: {
     color: '#dc2626',
     fontWeight: 600,
+  },
+  negativeStockBadge: {
+    color: '#ef4444',
+    fontWeight: 700,
+    background: '#fef2f2',
+    padding: '2px 6px',
+    borderRadius: '4px',
   },
   btnEdit: {
     background: '#3b82f6',

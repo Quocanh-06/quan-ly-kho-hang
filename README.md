@@ -6,7 +6,7 @@ Hệ thống quản lý kho hàng 2 web (React/Vite + Node/Express + Supabase), 
 
 ## Tech Stack
 
-- **Backend**: Node.js + Express + CORS + dotenv (Port 3000)
+- **Backend**: Node.js + Express + CORS + dotenv (Port 3001)
 - **Frontend**: React 18 + Vite (frontend-khach port 5173, frontend-admin port 5174)
 - **Database**: Supabase (PostgreSQL)
 
@@ -20,11 +20,11 @@ inventory-management-system/
 │   ├── .env              # SUPABASE_* + ADMIN_USERNAME/PASSWORD/SECRET_TOKEN
 │   └── .env.example
 ├── frontend-khach/       # 🛒 Web cho KHÁCH (port 5173, không cần login)
-│   ├── .env              # VITE_API_URL=http://localhost:3000
+│   ├── .env              # VITE_API_URL=http://localhost:3001
 │   ├── vite.config.js    # port 5173
 │   └── src/App.jsx       # Cửa hàng, tìm kiếm, giỏ hàng (nhập số trực tiếp), đặt hàng + cọc
 ├── frontend-admin/       # 📦 Web QUẢN TRỊ (port 5174, bắt buộc login)
-│   ├── .env              # VITE_API_URL=http://localhost:3000
+│   ├── .env              # VITE_API_URL=http://localhost:3001
 │   ├── vite.config.js    # port 5174
 │   └── src/App.jsx       # Login → Tab Kho + Tab Đơn hàng, in hóa đơn PDF
 ├── database.sql          # Schema + orders/order_items + FK ON DELETE SET NULL
@@ -38,6 +38,28 @@ inventory-management-system/
 
 ## Cài đặt & Chạy
 
+### 🚀 Khởi động nhanh (3 Terminal)
+
+```powershell
+# Terminal 1: Backend (cổng 3001)
+cd C:\inventory-management-system\backend
+node index.js
+
+# Terminal 2: Frontend khách hàng (cổng 5173)
+cd C:\inventory-management-system\frontend-khach
+npm run dev
+
+# Terminal 3: Frontend admin (cổng 5174)
+cd C:\inventory-management-system\frontend-admin
+npm run dev
+```
+
+Sau đó truy cập:
+- **Khách hàng:** http://localhost:5173
+- **Admin:** http://localhost:5174 (admin / MatKhauKhoDoan@2026)
+
+---
+
 ### 1. Cấu hình Database (Supabase)
 
 1. Tạo project mới tại [supabase.com](https://supabase.com)
@@ -50,7 +72,7 @@ inventory-management-system/
 # ⚠️ SUPABASE_URL KHÔNG có /rest/v1/ ở cuối
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_KEY=dán-anon-key-vào-đây
-PORT=3000
+PORT=3001
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=MatKhauKhoDoan@2026
 ADMIN_SECRET_TOKEN=chuoi_khoa_bi_mat_ngau_nhien_2026
@@ -58,27 +80,25 @@ ADMIN_SECRET_TOKEN=chuoi_khoa_bi_mat_ngau_nhien_2026
 
 ### 3. Chạy Backend
 
-```bash
-cd backend
-npm install
-npm start
-# http://localhost:3000
-# Kiểm tra: curl http://localhost:3000/health
+```powershell
+# Terminal 1
+cd C:\inventory-management-system\backend
+node index.js
+# http://localhost:3001
+# Kiểm tra: http://localhost:3001/health
 # Phải trả: {"status":"ok","supabase":"connected"}
 ```
 
 ### 4. Chạy Frontend
 
-```bash
-# Web khách hàng (Cửa hàng)
-cd frontend-khach
-npm install
+```powershell
+# Web khách hàng (Cửa hàng) - Terminal 2
+cd C:\inventory-management-system\frontend-khach
 npm run dev
 # http://localhost:5173
 
-# Web quản trị (Admin)
-cd frontend-admin
-npm install
+# Web quản trị (Admin) - Terminal 3
+cd C:\inventory-management-system\frontend-admin
 npm run dev
 # http://localhost:5174  → đăng nhập admin / MatKhauKhoDoan@2026
 ```
@@ -122,8 +142,8 @@ Authorization: Bearer <ADMIN_SECRET_TOKEN>
 
 | Lỗi | Nguyên nhân | Cách fix |
 |-----|-------------|----------|
-| EADDRINUSE :::3000 | Port 3000 đã chạy trước đó | Kill process: `npx kill-port 3000` |
-| Backend không kết nối Supabase | .env sai hoặc thiếu dotenv | Chạy `npm install dotenv`, kiểm tra SUPABASE_URL |
+| EADDRINUSE :::3001 | Port 3001 đã bị một instance server cũ chiếm | Dừng tất cả node: `Stop-Process -Name "node" -Force` (PowerShell) hoặc đóng terminal đang chạy server, rồi khởi động lại |
+| Backend không kết nối Supabase | .env sai hoặc thiếu SUPABASE_URL/KEY | Kiểm tra `SUPABASE_URL` và `SUPABASE_KEY` trong `backend/.env` |
 | Frontend lỗi CORS | Vite proxy thiếu route | Dùng `VITE_API_URL` trong `.env` |
 | Login báo sai mật khẩu | Env chưa sync | Đảm bảo `.env` có `ADMIN_PASSWORD` đúng |
 
